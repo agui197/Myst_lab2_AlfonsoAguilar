@@ -190,6 +190,7 @@ for(i in 1:length(Historico$Date)){
 # -- ------------------------------------ -- #
 # -- ------------------------------------ -- #
 Historico$Titulos_a[1]<-Historico$Titulos[1]
+Historico$R_Cuenta[1]<-Historico$Capital[1]+Historico$Balance[1]
 for(i in 2:length(Historico$Date)){
   
   if(Historico$R_Precio[i] <= Regla0_R){ # Generar Se?al
@@ -212,6 +213,7 @@ for(i in 2:length(Historico$Date)){
         Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
         Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
         Historico$Mensaje[i] <- "Se hizo una compra"
+        Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
       }
       
     }
@@ -221,6 +223,7 @@ for(i in 2:length(Historico$Date)){
       Historico$Titulos[i] <-0
       Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
       Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
        
       
       
@@ -234,9 +237,9 @@ for(i in 2:length(Historico$Date)){
     Historico$Titulos[i] <-0 
     Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
     Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+    Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
     
     
   }
   
 }
-Historico$Capital[i]+Historico$Balance[i]
