@@ -9,6 +9,7 @@ rm(list = ls())
 (library(knitr))  #opciones de documentacion + codigo
 (library(kableExtra))  #tablas en HTML
 (library(readxl))
+(library(plyr))
 # 
 # tk <- as.data.frame(read.xlsx(file = "IAK.xlsx",
 #                               sheetName = "Holdings",
@@ -67,16 +68,23 @@ Datos <- list()
 for(i in 1:length(tk)) {
   Datos[[i]] <- Bajar_Precios(Columns=cs, Ticker=tk[i], Fecha_In=fs[1], Fecha_Fn=fs[2])
 }
+for(i in 1:length(tk)){
+  Datos[[i]]<-Datos[[i]][order(Datos[[i]][,1]),]
+}
 names(Datos) <- tk
 
+
 longitudes <- c()
+
 
 for(i in 1:length(Datos)){
   longitudes[i] <- length(Datos[[i]]$date)
 }
+longs <- count(longitudes)
+l<-longs(wich.max(longs(freq),1))
 
-maximo <- max(longitudes)
-completos <- which(longitudes == maximo)
+#maximo <- max(longitudes)
+completos <- which(longitudes == l)
 
 DatosN <- Datos[completos]
 
@@ -103,10 +111,10 @@ row.names(Precios) <- DatosN[[1]]$date
 
 
 ##hacer correccion para voltear los precios
-temp<-Precios
-for(i in 1:(length(DatosN))){
-  temp[i]<-rev(Precios[i])
-}
+# temp<-Precios
+# for(i in 1:(length(DatosN))){
+#   temp[i]<-rev(Precios[i])
+# }
 
 # Reasignar nombres al data.frame
 tk_completos <- as.character(tk[completos])
@@ -181,7 +189,7 @@ for(i in 1:length(Historico$Date)){
 # -- ------------------------------------ -- #
 # -- ------------------------------------ -- #
 # -- ------------------------------------ -- #
-
+Historico$Titulos_a[1]<-Historico$Titulos[1]
 for(i in 2:length(Historico$Date)){
   
   if(Historico$R_Precio[i] <= Regla0_R){ # Generar Se?al
@@ -200,12 +208,20 @@ for(i in 2:length(Historico$Date)){
         Historico$Comisiones[i] <- compra*Regla4_C
         
         Historico$Titulos_a[i] <- Historico$Titulos[i-1]+Historico$Titulos[i]
-        
-        
+        Historico$Capital[i]<-Historico$Capital[i]-Historico$Titulos[i]*Historico$Precio[i]-Historico$Comisiones[i]
+        Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
+        Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+        Historico$Mensaje[i] <- "Se hizo una compra"
       }
       
     }
     else { # No hubo capital
+      Historico$Mensaje[i] <- "P"
+      Historico$Capital[i]<-Historico$Capital[i-1]
+      Historico$Titulos[i] <-0
+      Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
+      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+       
       
       
     }
@@ -213,7 +229,14 @@ for(i in 2:length(Historico$Date)){
     
   }
   else { # Sin se?al
+    Historico$Mensaje[i] <- "No hubo un rendimiento que activara la señal"
+    Historico$Capital[i]<-Historico$Capital[i-1]
+    Historico$Titulos[i] <-0 
+    Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
+    Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+    
     
   }
   
 }
+Historico$Capital[i]+Historico$Balance[i]
