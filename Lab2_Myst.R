@@ -81,7 +81,7 @@ for(i in 1:length(Datos)){
   longitudes[i] <- length(Datos[[i]]$date)
 }
 longs <- count(longitudes)
-l<-longs(wich.max(longs(freq),1))
+l<-longs$x[[which.max(longs$freq)]]
 
 #maximo <- max(longitudes)
 completos <- which(longitudes == l)
