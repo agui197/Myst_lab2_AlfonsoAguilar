@@ -17,8 +17,6 @@ rm(list = ls())
 #                               startRow=10,
 #                               endRow=73,header = FALSE))
 
-
-
 options(knitr.table.format = "html") 
 
 # Cargar el token de QUANDL
@@ -48,10 +46,6 @@ Bajar_Precios <- function(Columns, Tickers, Fecha_In, Fecha_Fn) {
 # for(i in 1:length(Datos)){
 #   temp[[i]] <- Quandl(paste0("EOD/",tk[i]))
 # }
-
-
-
-
 
 ETF=read_xls("ETF.xls")
 tk<-ETF$`14-Sep-2018`[9:length(ETF$`14-Sep-2018`)]
@@ -152,6 +146,11 @@ Regla2_P <- 0.25   # Se utiliza el P% del L capital restante en cada compra.
 Regla3_W <- tk_completos # Se realiza la misma estrategia para todos los activos en el portafolio.
 Regla4_C <- 0.0025 # Comisiones pagadas por compra.
 Regla5_K <- 100000 # Capital Inicial.
+# -- ----------------------------------------------------------------------------------------- -- #
+# -- ----------------------------------------------------------------------------------------- -- #
+Regla6_V <- (.1)+2*(Regla4_C)
+
+
 
 # -- ----------------------------------------------------------------------------------------- -- #
 # -- ----------------------------------------------------------------------------------------- -- #
@@ -192,14 +191,10 @@ for(i in 1:length(Historico$Date)){
 Historico$Titulos_a[1]<-Historico$Titulos[1]
 Historico$R_Cuenta[1]<-Historico$Capital[1]+Historico$Balance[1]
 for(i in 2:length(Historico$Date)){
-  
   if(Historico$R_Precio[i] <= Regla0_R){ # Generar Se?al
-    
     # Establecer capital actual, inicialmente, igual al capital anterior
     Historico$Capital[i] <- Historico$Capital[i-1]
-    
     if(Historico$Capital[i] > 0){ # Si hay capital
-      
       if(Historico$Capital[i]*Regla2_P > Historico$Precio[i]){ # Si Capital minimo
         
         Historico$Operacion[i] <- "Compra"
@@ -207,15 +202,13 @@ for(i in 2:length(Historico$Date)){
         
         compra <- Historico$Precio[i]*Historico$Titulos[i]  
         Historico$Comisiones[i] <- compra*Regla4_C
-        
         Historico$Titulos_a[i] <- Historico$Titulos[i-1]+Historico$Titulos[i]
-        Historico$Capital[i]<-Historico$Capital[i]-Historico$Titulos[i]*Historico$Precio[i]-Historico$Comisiones[i]
+        Historico$Capital[i]<-Historico$Capital[i-1]-compra-Historico$Comisiones[i]
         Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
         Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
         Historico$Mensaje[i] <- "Se hizo una compra"
         Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
       }
-      
     }
     else { # No hubo capital
       Historico$Mensaje[i] <- "P"
@@ -223,23 +216,47 @@ for(i in 2:length(Historico$Date)){
       Historico$Titulos[i] <-0
       Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
       Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$Mensaje[i] <- "Capital insuficiente"
       Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
-       
-      
-      
     }
-    
-    
   }
+  
+  
+  #else if(Historico$R_Precio[i] >= Regla6_V){ #aparece una señal de venta
+  else if(Historico$Titulos_a[i-1]*Historico$Precio[i]>=Historico$Balance[i-1]*(1+Regla6_V)+Historico$Titulos_a*Historico$Precio*Regla4_C){
+    if(Historico$Titulos_a[i-1] > 0){ #Si hay acciones para vender
+      Historico$Operacion[i] <- "Venta"
+      Historico$Titulos[i] <-Historico$Titulos_a[i-1]
+      venta <- Historico$Precio[i]*Historico$Titulos[i]
+      Historico$Comisiones[i] <- venta*Regla4_C
+      Historico$Titulos_a[i] <-0
+      Historico$Capital[i]<-Historico$Capital[i-1]+venta-Historico$Comisiones[i]
+      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$Mensaje[i] <- "Se hizo una venta"
+      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+    }
+    else{
+      Historico$Mensaje[i] <- "Activos insuficientes"
+      Historico$Capital[i]<-Historico$Capital[i-1]
+      Historico$Titulos[i] <-0
+      Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
+      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+    }
+  }
+  
+  
+  
   else { # Sin se?al
     Historico$Mensaje[i] <- "No hubo un rendimiento que activara la señal"
+    Historico$Operacion[i] <- "N/A"
     Historico$Capital[i]<-Historico$Capital[i-1]
     Historico$Titulos[i] <-0 
+    Historico$Comisiones[i]<-Historico$Titulos[i]*Historico$Precio[i]
     Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
     Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
     Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
-    
-    
   }
-  
 }
+
+
