@@ -123,21 +123,24 @@ Historico <- data.frame("Date" = row.names(Precios),
                         "R_Precio" = 0, 
                         "R_Activo" = 0,
                         "R_Cuenta" = 0, 
-                        "Capital" = 0, "Balance" = 0, "Titulos" = 0,
+                        "Capital" = 0,"Flotante" = 0, "Balance" = 0, "Titulos" = 0,
                         "Titulos_a" = 0,
-                        "Operacion" = NA, "Comisiones" = 0, "Mensaje" = NA)
+                        "Operacion" = NA, "Comisiones" = 0,"Comisiones_a" = 0, "Mensaje" = NA)
 
 # *Date*       : Fecha (Proviene desde los precios que bajaron).
 # *Precio*     : Precio individual del activo.
 # *R_Precio*   : Rendimiento diario del precio (dia a dia).
 # *R_Activo*   : Rendimiento acumulado del precio (Cada dia respecto al precio inicial).
 # *Capital*    : El dinero no invertido (Equivalente a Efectivo).
-# *Balance*    : El valor del portafolio (Precio diario X Titulos).
+# *Flotante     : Es el valor de los titulos acumulados que se tienen por el valor del activo
+# *Balance*    : Capital + Flotante
+
 # *R_Cuenta*   : Balance + Capital (Cada dia respecto al capital inicial).
 # *Titulos*    : Acciones que se tienen.
 # *Titulos_a*  : Titulos acumulados.
 # *Operacion*  : Indicativo de Compra (1), Mantener (0), Venta (-1).
 # *Comisiones* : 0.0025 ? 0.25% por el valor de la transacci?n.
+# *Comisiones_a: Comisiones acumuladas
 # *Mensaje*    : Un texto que indique alguna decisi?n o indicativo de que ocurri? algo.
 
 Regla0_R <- -0.03  # Considerar una oportunidad de compra en un rendimiento de -6% o menor.
@@ -159,14 +162,33 @@ Regla6_V <- (.1)+2*(Regla4_C)
 # -- Calcular los Titulos de posicion inicial
 Historico$Titulos[1] <- (Regla5_K*Regla1_I)%/%Historico$Precio[1]
 
+Historico$Titulos_a[1]<-Historico$Titulos[1]
+
+
 # -- Se calculan comisiones iniciales
 Historico$Comisiones[1] <- Historico$Titulos[1]*Historico$Precio[1]*Regla4_C
+Historico$Comisiones_a[1] <- Historico$Comisiones[1]
 
-# -- Calcular el Balance
-Historico$Balance[1] <- Historico$Titulos[1]*Historico$Precio[1]
+
+
+
+
+
+# --- Calcular el valor flotante de la posicion
+Historico$Flotante[1] <- Historico$Titulos_a[1]*Historico$Precio[1]
 
 # -- Todo remanente se dejar? registrado en la cuenta de efectivo.
-Historico$Capital[1] <- Regla5_K-Historico$Balance[1]-Historico$Comisiones[1]
+Historico$Capital[1] <- Regla5_K-Historico$Flotante[1]-Historico$Comisiones[1]
+
+# -- Calcular el Balance
+Historico$Balance[1] <- Historico$Flotante[1]+Historico$Capital[1]
+
+
+
+
+
+
+
 
 # -- Iniciamos con una postura de mantener.
 Historico$Operacion[1] <- "Posicion Inicial"
@@ -185,11 +207,14 @@ for(i in 1:length(Historico$Date)){
   Historico$R_Activo[i] <- round((Historico$Precio[i]/Historico$Precio[1])-1,2)
 }
 
+
+
+
 # -- ------------------------------------ -- #
 # -- ------------------------------------ -- #
 # -- ------------------------------------ -- #
-Historico$Titulos_a[1]<-Historico$Titulos[1]
 Historico$R_Cuenta[1]<-Historico$Capital[1]+Historico$Balance[1]
+
 for(i in 2:length(Historico$Date)){
   if(Historico$R_Precio[i] <= Regla0_R){ # Generar Se?al
     # Establecer capital actual, inicialmente, igual al capital anterior
@@ -202,48 +227,56 @@ for(i in 2:length(Historico$Date)){
         
         compra <- Historico$Precio[i]*Historico$Titulos[i]  
         Historico$Comisiones[i] <- compra*Regla4_C
+        Historico$Comisiones_a[i] <- Historico$Comisiones_a[i-1]+Historico$Comisiones[i]
+        
         Historico$Titulos_a[i] <- Historico$Titulos[i-1]+Historico$Titulos[i]
         Historico$Capital[i]<-Historico$Capital[i-1]-compra-Historico$Comisiones[i]
         Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
-        Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+        
+        Historico$Flotante[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+        Historico$Balance[i] <- Historico$Capital[i]+Historico$Flotante[i]
+        
         Historico$Mensaje[i] <- "Se hizo una compra"
-        Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+        Historico$R_Cuenta[i]<-Historico$Balance[i]/Regla5_K-1
       }
     }
     else { # No hubo capital
       Historico$Mensaje[i] <- "P"
       Historico$Capital[i]<-Historico$Capital[i-1]
       Historico$Titulos[i] <-0
+      Historico$Comisiones[i] <-0
+      Historico$Comisiones_a[i] <- Historico$Comisiones_a[i-1]
       Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
-      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$Flotante[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+      Historico$Balance[i] <- Historico$Capital[i]+Historico$Flotante[i]
       Historico$Mensaje[i] <- "Capital insuficiente"
-      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+      Historico$R_Cuenta[i]<-Historico$Balance[i]/Regla5_K-1
     }
   }
   
   
-  #else if(Historico$R_Precio[i] >= Regla6_V){ #aparece una señal de venta
-  else if(Historico$Titulos_a[i-1]*Historico$Precio[i]>=Historico$Balance[i-1]*(1+Regla6_V)+Historico$Titulos_a*Historico$Precio*Regla4_C){
-    if(Historico$Titulos_a[i-1] > 0){ #Si hay acciones para vender
-      Historico$Operacion[i] <- "Venta"
-      Historico$Titulos[i] <-Historico$Titulos_a[i-1]
-      venta <- Historico$Precio[i]*Historico$Titulos[i]
-      Historico$Comisiones[i] <- venta*Regla4_C
-      Historico$Titulos_a[i] <-0
-      Historico$Capital[i]<-Historico$Capital[i-1]+venta-Historico$Comisiones[i]
-      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
-      Historico$Mensaje[i] <- "Se hizo una venta"
-      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
-    }
-    else{
-      Historico$Mensaje[i] <- "Activos insuficientes"
-      Historico$Capital[i]<-Historico$Capital[i-1]
-      Historico$Titulos[i] <-0
-      Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
-      Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
-      Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
-    }
-  }
+  # #else if(Historico$R_Precio[i] >= Regla6_V){ #aparece una señal de venta
+  # else if(Historico$Titulos_a[i-1]*Historico$Precio[i]>=Historico$Balance[i-1]*(1+Regla6_V)+Historico$Titulos_a*Historico$Precio*Regla4_C){
+  #   if(Historico$Titulos_a[i-1] > 0){ #Si hay acciones para vender
+  #     Historico$Operacion[i] <- "Venta"
+  #     Historico$Titulos[i] <-Historico$Titulos_a[i-1]
+  #     venta <- Historico$Precio[i]*Historico$Titulos[i]
+  #     Historico$Comisiones[i] <- venta*Regla4_C
+  #     Historico$Titulos_a[i] <-0
+  #     Historico$Capital[i]<-Historico$Capital[i-1]+venta-Historico$Comisiones[i]
+  #     Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+  #     Historico$Mensaje[i] <- "Se hizo una venta"
+  #     Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+  #   }
+  #   else{
+  #     Historico$Mensaje[i] <- "Activos insuficientes"
+  #     Historico$Capital[i]<-Historico$Capital[i-1]
+  #     Historico$Titulos[i] <-0
+  #     Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
+  #     Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+  #     Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+  #   }
+  # }
   
   
   
@@ -252,10 +285,12 @@ for(i in 2:length(Historico$Date)){
     Historico$Operacion[i] <- "N/A"
     Historico$Capital[i]<-Historico$Capital[i-1]
     Historico$Titulos[i] <-0 
-    Historico$Comisiones[i]<-Historico$Titulos[i]*Historico$Precio[i]
-    Historico$Titulos_a[i]<-Historico$Titulos[i]+Historico$Titulos_a[i-1]
-    Historico$Balance[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
-    Historico$R_Cuenta[i]<-Historico$Capital[i]+Historico$Balance[i]
+    Historico$Comisiones[i]<-0
+    Historico$Comisiones_a[i] <- Historico$Comisiones_a[i-1]
+    Historico$Titulos_a[i]<-Historico$Titulos_a[i-1]
+    Historico$Flotante[i] <- Historico$Titulos_a[i]*Historico$Precio[i]
+    Historico$Balance[i] <- Historico$Capital[i]+Historico$Flotante[i]
+    Historico$R_Cuenta[i]<-Historico$Balance[i]/Regla5_K-1
   }
 }
 
