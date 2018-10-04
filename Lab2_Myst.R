@@ -118,11 +118,9 @@ colnames(Precios) <- tk_completos
 # -- ----------------------------------------------------------------------------------------- -- #
 # -- ----------------------------------------------------------------------------------------- -- #
 
-Historico   <- c()
 
+Historico   <- c()
 for(j in 1:length(tk_completos)){
-  
-  
   Historico[[j]] <- data.frame("Date" = row.names(Precios),
                                "Precio" = Precios[,j], 
                                "R_Precio" = 0, 
@@ -167,7 +165,6 @@ for(j in 1:length(tk_completos)){
   
   Historico[[j]]$Titulos_a[1]<-Historico[[j]]$Titulos[1]
   
-  
   # -- Se calculan comisiones iniciales
   Historico[[j]]$Comisiones[1] <- Historico[[j]]$Titulos[1]*Historico[[j]]$Precio[1]*Regla4_C
   Historico[[j]]$Comisiones_a[1] <- Historico[[j]]$Comisiones[1]
@@ -192,41 +189,31 @@ for(j in 1:length(tk_completos)){
   
   # -- Calcular R_Precio
   Historico[[j]]$R_Precio <- round(c(0, diff(log(Historico[[j]]$Precio))),4)
-  
   # -- Calcular R_Activo
-  for(i in 1:length(Historico$Date)){
-    Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
-  }
-  
-  
-  
-  
+  #for(i in 1:length(Historico$Date)){
+   # Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
+  #}
   # -- ------------------------------------ -- #
   # -- ------------------------------------ -- #
   # -- ------------------------------------ -- #
   Historico[[j]]$R_Cuenta[1]<-Historico[[j]]$Capital[1]+Historico[[j]]$Balance[1]
-  
   for(i in 2:length(Historico[[j]]$Date)){
+    Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
     if(Historico[[j]]$R_Precio[i] <= Regla0_R){ # Generar Se?al
       # Establecer capital actual, inicialmente, igual al capital anterior
       Historico[[j]]$Capital[i] <- Historico[[j]]$Capital[i-1]
       if(Historico[[j]]$Capital[i] > 0){ # Si hay capital
         if(Historico[[j]]$Capital[i]*Regla2_P > Historico[[j]]$Precio[i]){ # Si Capital minimo
-          
           Historico[[j]]$Operacion[i] <- "Compra"
           Historico[[j]]$Titulos[i]   <- (Historico[[j]]$Capital[i]*Regla2_P)%/%Historico[[j]]$Precio[i]
-          
           compra <- Historico[[j]]$Precio[i]*Historico[[j]]$Titulos[i]  
           Historico[[j]]$Comisiones[i] <- compra*Regla4_C
           Historico[[j]]$Comisiones_a[i] <- Historico[[j]]$Comisiones_a[i-1]+Historico[[j]]$Comisiones[i]
-          
           Historico[[j]]$Titulos_a[i] <- Historico[[j]]$Titulos[i-1]+Historico[[j]]$Titulos[i]
           Historico[[j]]$Capital[i]<-Historico[[j]]$Capital[i-1]-compra-Historico[[j]]$Comisiones[i]
           Historico[[j]]$Titulos_a[i]<-Historico[[j]]$Titulos[i]+Historico[[j]]$Titulos_a[i-1]
-          
           Historico[[j]]$Flotante[i] <- Historico[[j]]$Titulos_a[i]*Historico[[j]]$Precio[i]
           Historico[[j]]$Balance[i] <- Historico[[j]]$Capital[i]+Historico[[j]]$Flotante[i]
-          
           Historico[[j]]$Mensaje[i] <- "Se hizo una compra"
           Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
         }
@@ -244,8 +231,6 @@ for(j in 1:length(tk_completos)){
         Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
       }
     }
-    
-    
     # #else if(Historico[[j]]$R_Precio[i] >= Regla6_V){ #aparece una señal de venta
     # else if(Historico[[j]]$Titulos_a[i-1]*Historico[[j]]$Precio[i]>=Historico[[j]]$Balance[i-1]*(1+Regla6_V)+Historico[[j]]$Titulos_a*Historico[[j]]$Precio*Regla4_C){
     #   if(Historico[[j]]$Titulos_a[i-1] > 0){ #Si hay acciones para vender
@@ -268,9 +253,6 @@ for(j in 1:length(tk_completos)){
     #     Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Capital[i]+Historico[[j]]$Balance[i]
     #   }
     # }
-    
-    
-    
     else { # Sin se?al
       Historico[[j]]$Mensaje[i] <- "No hubo un rendimiento que activara la señal"
       Historico[[j]]$Operacion[i] <- "N/A"
@@ -285,6 +267,12 @@ for(j in 1:length(tk_completos)){
     }
   }
 }
-
+names(Historico)<-c(names(DatosN))
+win<-0
+for(i in 1:length(DatosN)) {
+  if(rev(Historico[[i]]$R_Cuenta)[1]>rev(Historico[[i]]$R_Activo)[1]){
+    win<-win+1
+  }
+}
 
 
