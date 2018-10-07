@@ -289,13 +289,24 @@ names(results)<-c("Historico","Wins")
 ########################
 # BUSQUEDA DE PARAMETROS OPTIMOS
 ########################
+tic()
 
-np<-50; #N?mero de particulas
+np<-10; #N?mero de particulas
 #inicializaci?n
 x1p<-list()
 for(j in 1:length(seq(np))){
-  x1p[[j]]<-runif(3, min=0, max=1)
+  x1p[[j]]<-c(0,0,0)
+  
 } 
+
+for(j in 1:length(seq(np))){
+  x1p[[j]][1]<-runif(1, min=-.3, max=0)
+  x1p[[j]][2]<-runif(1, min=0, max=1)
+  x1p[[j]][3]<-runif(1, min=0, max=1)
+  
+  
+} 
+x1p[[1]]<-c(-.03,.2,.25)
 x1pg<-c(0,0,0)
 vx1<-list()
 for(j in 1:length(seq(np))){
@@ -314,7 +325,7 @@ c2<-0.3 #velocidad de convergencia al mejor local
 
 
 #iteraciones
-for(k in 1:length(seq(100))){
+for(k in 1:length(seq(10))){
   fx<-list()
   a<- -1000
   for(i in 1:length(seq(np))){
