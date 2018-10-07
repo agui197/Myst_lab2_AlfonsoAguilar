@@ -10,6 +10,10 @@ rm(list = ls())
 (library(kableExtra))  #tablas en HTML
 (library(readxl))
 (library(plyr))
+(library(tictoc))
+tic()
+
+
 # 
 # tk <- as.data.frame(read.xlsx(file = "IAK.xlsx",
 #                               sheetName = "Holdings",
@@ -231,7 +235,7 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
           Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
         }
       }
-      # #else if(Historico[[j]]$R_Precio[i] >= Regla6_V){ #aparece una señal de venta
+      # #else if(Historico[[j]]$R_Precio[i] >= Regla6_V){ #aparece una se?al de venta
       # else if(Historico[[j]]$Titulos_a[i-1]*Historico[[j]]$Precio[i]>=Historico[[j]]$Balance[i-1]*(1+Regla6_V)+Historico[[j]]$Titulos_a*Historico[[j]]$Precio*Regla4_C){
       #   if(Historico[[j]]$Titulos_a[i-1] > 0){ #Si hay acciones para vender
       #     Historico[[j]]$Operacion[i] <- "Venta"
@@ -254,7 +258,7 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
       #   }
       # }
       else { # Sin se?al
-        Historico[[j]]$Mensaje[i] <- "No hubo un rendimiento que activara la señal"
+        Historico[[j]]$Mensaje[i] <- "No hubo un rendimiento que activara la se?al"
         Historico[[j]]$Operacion[i] <- "N/A"
         Historico[[j]]$Capital[i]<-Historico[[j]]$Capital[i-1]
         Historico[[j]]$Titulos[i] <-0 
@@ -286,8 +290,8 @@ names(results)<-c("Historico","Wins")
 # BUSQUEDA DE PARAMETROS OPTIMOS
 ########################
 
-np<-200; #Número de particulas
-#inicialización
+np<-50; #N?mero de particulas
+#inicializaci?n
 x1p<-list()
 for(j in 1:length(seq(np))){
   x1p[[j]]<-runif(3, min=0, max=1)
@@ -299,10 +303,10 @@ for(j in 1:length(seq(np))){
 }
 x1pL<-x1p
 
-fxpg<-1000 #desempeño valor inicial del mejor global
+fxpg<-1000 #desempe?o valor inicial del mejor global
 fxpL<-list()
 for(j in 1:length(seq(np))){
-  fxpL[[j]]<-c(fxpg) #desempeño delos mejores locales
+  fxpL[[j]]<-c(fxpg) #desempe?o delos mejores locales
 }
 
 c1<-0.3 #Velocidad de convergencia al  mejor global
@@ -310,15 +314,31 @@ c2<-0.3 #velocidad de convergencia al mejor local
 
 
 #iteraciones
-for(k in 1:length(seq(2000))){
+for(k in 1:length(seq(100))){
   fx<-list()
   a<- -1000
   for(i in 1:length(seq(np))){
-    fx[[i]]<- -(trading_strategy(x1p[[i]][1],x1p[[i]][2],x1p[[i]][2])+a*max(x1p[[i]][1],0)+a*max(-x1p[[i]][2],0)+a*max(x1p[[i]][2]-1,0)+a*max(-x1p[[i]][3],0)+a*max(x1p[[i]][3]-1,0))
+    t<-trading_strategy(x1p[[i]][1],x1p[[i]][2],x1p[[i]][2])
+    fx[[i]]<- -(t[[2]]+a*max(x1p[[i]][1],0)+a*max(-x1p[[i]][2],0)+a*max(x1p[[i]][2]-1,0)+a*max(-x1p[[i]][3],0)+a*max(x1p[[i]][3]-1,0))
   }
   ind<-which.min(fx)
   val<-fx[[ind]]
+  if(val<fxpg){
+    x1pg<-x1p[[ind]]
+    fxpg<-val;
+  }
+  for(p in 1:seq((length(np)))){
+    if(fx[[p]]<fxpL[[p]]){
+      x1pL[[p]]<-x1p[[p]]
+    }
+  }
+  for(p in 1:seq(length(np))){
+    vx1[[p]]=vx1[[p]]+c1*runif(3, min=0, max=1)*(x1pg-x1p[[p]])+c2*runif(3, min=0, max=1)*(x1pL[[p]]-x1p[[p]])
+  } 
 }
 ##continuar con el remplazo de los mejores globales y locales
 
+optime_result<-trading_strategy(x1pg[1],x1pg[2],x1pg[2])
+
+toc()
 
