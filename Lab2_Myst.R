@@ -1,6 +1,5 @@
 # Remover todos los objetos del "Environment"
 rm(list = ls())
-
 ###Cargar librerias a utilizar
 (library(plotly))  #graficas interactivas
 (library(Quandl))  #Descargar precios
@@ -13,56 +12,36 @@ rm(list = ls())
 (library(tictoc))
 tic()
 
-
-# 
-# tk <- as.data.frame(read.xlsx(file = "IAK.xlsx",
-#                               sheetName = "Holdings",
-#                               colIndex=1,
-#                               startRow=10,
-#                               endRow=73,header = FALSE))
-
 options(knitr.table.format = "html") 
-
 # Cargar el token de QUANDL
 Quandl.api_key("dN9QssXxzTxndaqKUQ_i")
-
 # Funcion para descagar precios
 Bajar_Precios <- function(Columns, Tickers, Fecha_In, Fecha_Fn) {
-  
   # Funcion para descargar N cantidad de activos desde QUANDL
   # -- Dependencias: QUANDL
   # -- Columns : columnas a incluir : character : c("date", "adj_close", ... )
   # -- Tickers : Tickers o claves de pizarra de los activos : character : "TSLA"
   # -- Fecha_In : Fecha Inicial : character : "2017-01-02"
   # -- Fecha_Fn : Fecha Final : character : "2017-08-02"
-  
   # Peticion para descargar precios
   Datos <- Quandl.datatable("WIKI/PRICES", qopts.columns=Columns,
                             ticker=Tickers,
                             date.gte=Fecha_In, date.lte=Fecha_Fn)
   return(Datos)
 }
-
 #### Para poder descargar los datos actualizados se necesitaria estar suscrito a la base de datos diaria
-
 # Quandl.api_key("Us_v4rfs-m_kLT1skgsQ")
 # temp <-list()
 # for(i in 1:length(Datos)){
 #   temp[[i]] <- Quandl(paste0("EOD/",tk[i]))
 # }
-
 ETF=read_xls("ETF.xls")
 tk<-ETF$`14-Sep-2018`[9:length(ETF$`14-Sep-2018`)]
-
-
 cs <- c("date", "adj_close")
-
 # Fecha inicial y fecha final
 fs <- c("2016-01-20", "2018-01-20")
-
 # Descargar Precios
 Datos <- list()
-
 for(i in 1:length(tk)) {
   Datos[[i]] <- Bajar_Precios(Columns=cs, Ticker=tk[i], Fecha_In=fs[1], Fecha_Fn=fs[2])
 }
@@ -70,86 +49,62 @@ for(i in 1:length(tk)){
   Datos[[i]]<-Datos[[i]][order(Datos[[i]][,1]),]
 }
 names(Datos) <- tk
-
-
 longitudes <- c()
-
-
 for(i in 1:length(Datos)){
   longitudes[i] <- length(Datos[[i]]$date)
 }
 longs <- count(longitudes)
 l<-longs$x[[which.max(longs$freq)]]
-
 #maximo <- max(longitudes)
 completos <- which(longitudes == l)
-
 DatosN <- Datos[completos]
-
-
+#DatosN[1:10]
 # Vector para almacenar columnas de interes
 columnas <- c()
 nuevos   <- c()
-
 # Funci?n para repetir una funci?n por cada columna del data.frame
 Precios <- do.call(cbind, DatosN)
-
 # Crear vector con nombres de columnas de interes = "nombredeactivo.adj_close_r"
 for(i in 1:length(tk)){
   nuevos[i] <- paste(tk[i], ".adj_close", sep="")
 }
-
 # Extraer 1 renglon para obtener los nombres de las columnas
 nombres <- colnames(Precios[1,(names(Precios) %in% nuevos)])
-
 # Elejir una columna Date y las dem?s columnas de rendimientos
-
 Precios <- Precios[,(names(Precios) %in% nuevos)]
 row.names(Precios) <- DatosN[[1]]$date
-
-
-##hacer correccion para voltear los precios
-# temp<-Precios
-# for(i in 1:(length(DatosN))){
-#   temp[i]<-rev(Precios[i])
-# }
-
 # Reasignar nombres al data.frame
 tk_completos <- as.character(tk[completos])
 colnames(Precios) <- tk_completos
+Historico   <- c()
+for(j in 1:length(tk_completos)){
+  Historico[[j]] <- data.frame("Date" = row.names(Precios),
+                               "Precio" = Precios[,j], 
+                               "R_Precio" = 0, 
+                               "R_Activo" = 0,
+                               "R_Cuenta" = 0, 
+                               "Capital" = 0,"Flotante" = 0, "Balance" = 0, "Titulos" = 0,
+                               "Titulos_a" = 0,
+                               "Operacion" = NA, "Comisiones" = 0,"Comisiones_a" = 0, "Mensaje" = NA)
+  
+  
+  # -- El rendimiento de capital en el tiempo 1 es 0
+  Historico[[j]]$R_Cuenta[1] <- 0
+  
+  # -- Calcular R_Precio
+  Historico[[j]]$R_Precio <- round(c(0, diff(log(Historico[[j]]$Precio))),4)
+  
+  for(i in 2:length(Historico[[j]]$Date)){
+    Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
+    
+  }
+}
 
-# -- ----------------------------------------------------------------------------------------- -- #
-# -- ----------------------------------------------------------------------------------------- -- #
-# -- ----------------------------------------------------------------------------------------- -- #
 
-trading_strategy <- function(ReglaR,ReglaI,ReglaP){
-  Historico   <- c()
+
+
+trading_strategy <- function(Historico,ReglaR,ReglaI,ReglaP){
   for(j in 1:length(tk_completos)){
-    Historico[[j]] <- data.frame("Date" = row.names(Precios),
-                                 "Precio" = Precios[,j], 
-                                 "R_Precio" = 0, 
-                                 "R_Activo" = 0,
-                                 "R_Cuenta" = 0, 
-                                 "Capital" = 0,"Flotante" = 0, "Balance" = 0, "Titulos" = 0,
-                                 "Titulos_a" = 0,
-                                 "Operacion" = NA, "Comisiones" = 0,"Comisiones_a" = 0, "Mensaje" = NA)
-    
-    # *Date*       : Fecha (Proviene desde los precios que bajaron).
-    # *Precio*     : Precio individual del activo.
-    # *R_Precio*   : Rendimiento diario del precio (dia a dia).
-    # *R_Activo*   : Rendimiento acumulado del precio (Cada dia respecto al precio inicial).
-    # *Capital*    : El dinero no invertido (Equivalente a Efectivo).
-    # *Flotante     : Es el valor de los titulos acumulados que se tienen por el valor del activo
-    # *Balance*    : Capital + Flotante
-    
-    # *R_Cuenta*   : Balance + Capital (Cada dia respecto al capital inicial).
-    # *Titulos*    : Acciones que se tienen.
-    # *Titulos_a*  : Titulos acumulados.
-    # *Operacion*  : Indicativo de Compra (1), Mantener (0), Venta (-1).
-    # *Comisiones* : 0.0025 ? 0.25% por el valor de la transacci?n.
-    # *Comisiones_a: Comisiones acumuladas
-    # *Mensaje*    : Un texto que indique alguna decisi?n o indicativo de que ocurri? algo.
-    
     Regla0_R <- ReglaR  # Considerar una oportunidad de compra en un rendimiento de -6% o menor.
     Regla1_I <- ReglaI   # Porcentaje de capital para comprar titulos para posicion Inicial.
     Regla2_P <- ReglaP   # Se utiliza el P% del L capital restante en cada compra.
@@ -185,24 +140,10 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
     # -- Iniciamos con una postura de mantener.
     Historico[[j]]$Operacion[1] <- "Posicion Inicial"
     
-    # -- El rendimiento de capital en el tiempo 1 es 0
-    Historico[[j]]$R_Cuenta[1] <- 0
     
     # -- Mensaje inicial
     Historico[[j]]$Mensaje[1] <- "Inicializacion de cartera"
-    
-    # -- Calcular R_Precio
-    Historico[[j]]$R_Precio <- round(c(0, diff(log(Historico[[j]]$Precio))),4)
-    # -- Calcular R_Activo
-    #for(i in 1:length(Historico$Date)){
-    # Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
-    #}
-    # -- ------------------------------------ -- #
-    # -- ------------------------------------ -- #
-    # -- ------------------------------------ -- #
-    Historico[[j]]$R_Cuenta[1]<-Historico[[j]]$Capital[1]+Historico[[j]]$Balance[1]
     for(i in 2:length(Historico[[j]]$Date)){
-      Historico[[j]]$R_Activo[i] <- round((Historico[[j]]$Precio[i]/Historico[[j]]$Precio[1])-1,2)
       if(Historico[[j]]$R_Precio[i] <= Regla0_R){ # Generar Se?al
         # Establecer capital actual, inicialmente, igual al capital anterior
         Historico[[j]]$Capital[i] <- Historico[[j]]$Capital[i-1]
@@ -235,28 +176,33 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
           Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
         }
       }
-      # #else if(Historico[[j]]$R_Precio[i] >= Regla6_V){ #aparece una se?al de venta
-      # else if(Historico[[j]]$Titulos_a[i-1]*Historico[[j]]$Precio[i]>=Historico[[j]]$Balance[i-1]*(1+Regla6_V)+Historico[[j]]$Titulos_a*Historico[[j]]$Precio*Regla4_C){
-      #   if(Historico[[j]]$Titulos_a[i-1] > 0){ #Si hay acciones para vender
-      #     Historico[[j]]$Operacion[i] <- "Venta"
-      #     Historico[[j]]$Titulos[i] <-Historico[[j]]$Titulos_a[i-1]
-      #     venta <- Historico[[j]]$Precio[i]*Historico[[j]]$Titulos[i]
-      #     Historico[[j]]$Comisiones[i] <- venta*Regla4_C
-      #     Historico[[j]]$Titulos_a[i] <-0
-      #     Historico[[j]]$Capital[i]<-Historico[[j]]$Capital[i-1]+venta-Historico[[j]]$Comisiones[i]
-      #     Historico[[j]]$Balance[i] <- Historico[[j]]$Titulos_a[i]*Historico[[j]]$Precio[i]
-      #     Historico[[j]]$Mensaje[i] <- "Se hizo una venta"
-      #     Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Capital[i]+Historico[[j]]$Balance[i]
-      #   }
-      #   else{
-      #     Historico[[j]]$Mensaje[i] <- "Activos insuficientes"
-      #     Historico[[j]]$Capital[i]<-Historico[[j]]$Capital[i-1]
-      #     Historico[[j]]$Titulos[i] <-0
-      #     Historico[[j]]$Titulos_a[i]<-Historico[[j]]$Titulos[i]+Historico[[j]]$Titulos_a[i-1]
-      #     Historico[[j]]$Balance[i] <- Historico[[j]]$Titulos_a[i]*Historico[[j]]$Precio[i]
-      #     Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Capital[i]+Historico[[j]]$Balance[i]
-      #   }
-      # }
+      # else if(Historico[[j]]$R_Precio[i] >= Regla6_V){ #aparece una se?al de venta
+      # # else if(Historico[[j]]$Titulos_a[i-1]*Historico[[j]]$Precio[i]>=Historico[[j]]$Balance[i-1]*(1+Regla6_V)+Historico[[j]]$Titulos_a*Historico[[j]]$Precio*Regla4_C){
+      #    if(Historico[[j]]$Titulos_a[i-1] > 0){ #Si hay acciones para vender
+      #       Historico[[j]]$Operacion[i] <- "Venta"
+      #       Historico[[j]]$Titulos[i] <-Historico[[j]]$Titulos_a[i-1]
+      #       venta <- Historico[[j]]$Precio[i]*Historico[[j]]$Titulos[i]
+      #       Historico[[j]]$Comisiones[i] <- venta*Regla4_C
+      #       Historico[[j]]$Comisiones_a[i] <- Historico[[j]]$Comisiones_a[i-1]+Historico[[j]]$Comisiones[i]
+      #       Historico[[j]]$Titulos_a[i] <-0
+      #       Historico[[j]]$Flotante[i] <- Historico[[j]]$Titulos_a[i]*Historico[[j]]$Precio[i]
+      #       Historico[[j]]$Balance[i] <- Historico[[j]]$Capital[i]+Historico[[j]]$Flotante[i]
+      #       Historico[[j]]$Mensaje[i] <- "Se hizo una venta"
+      #       Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
+      #    }
+      #    else{
+      #       Historico[[j]]$Mensaje[i] <- "Activos insuficientes"
+      #       Historico[[j]]$Capital[i]<-Historico[[j]]$Capital[i-1]
+      #       Historico[[j]]$Titulos[i] <-0
+      #       Historico[[j]]$Titulos_a[i]<-Historico[[j]]$Titulos[i]+Historico[[j]]$Titulos_a[i-1]
+      #       Historico[[j]]$Comisiones[i] <-0
+      #       Historico[[j]]$Comisiones_a[i] <- Historico[[j]]$Comisiones_a[i-1]+Historico[[j]]$Comisiones[i]
+      #       
+      #       Historico[[j]]$Flotante[i] <- Historico[[j]]$Titulos_a[i]*Historico[[j]]$Precio[i]
+      #       Historico[[j]]$Balance[i] <- Historico[[j]]$Capital[i]+Historico[[j]]$Flotante[i]
+      #       Historico[[j]]$R_Cuenta[i]<-Historico[[j]]$Balance[i]/Regla5_K-1
+      #    }
+      #  }
       else { # Sin se?al
         Historico[[j]]$Mensaje[i] <- "No hubo un rendimiento que activara la se?al"
         Historico[[j]]$Operacion[i] <- "N/A"
@@ -271,6 +217,7 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
       }
     }
   }
+  
   names(Historico)<-c(names(DatosN))
   win<-0
   for(i in 1:length(DatosN)) {
@@ -282,14 +229,18 @@ trading_strategy <- function(ReglaR,ReglaI,ReglaP){
   results[[1]]<-Historico
   results[[2]]<-win
   return(results)
+  #return(win)
 }
-results<-trading_strategy(-.03,.2,.25)
-names(results)<-c("Historico","Wins")
 
-########################
-# BUSQUEDA DE PARAMETROS OPTIMOS
-########################
-tic()
+
+
+results<-trading_strategy(Historico,-.03,.2,.25)
+
+
+
+
+
+
 
 np<-10; #N?mero de particulas
 #inicializaci?n
@@ -301,7 +252,7 @@ for(j in 1:length(seq(np))){
 
 for(j in 1:length(seq(np))){
   x1p[[j]][1]<-runif(1, min=-.3, max=0)
-  x1p[[j]][2]<-runif(1, min=0, max=1)
+  x1p[[j]][2]<-runif(1, min=0, max=.5)
   x1p[[j]][3]<-runif(1, min=0, max=1)
   
   
@@ -319,17 +270,14 @@ fxpL<-list()
 for(j in 1:length(seq(np))){
   fxpL[[j]]<-c(fxpg) #desempe?o delos mejores locales
 }
-
 c1<-0.3 #Velocidad de convergencia al  mejor global
 c2<-0.3 #velocidad de convergencia al mejor local
-
-
 #iteraciones
 for(k in 1:length(seq(10))){
   fx<-list()
   a<- -1000
   for(i in 1:length(seq(np))){
-    t<-trading_strategy(x1p[[i]][1],x1p[[i]][2],x1p[[i]][2])
+    t<-trading_strategy(Historico,x1p[[i]][1],x1p[[i]][2],x1p[[i]][2])
     fx[[i]]<- -(t[[2]]+a*max(x1p[[i]][1],0)+a*max(-x1p[[i]][2],0)+a*max(x1p[[i]][2]-1,0)+a*max(-x1p[[i]][3],0)+a*max(x1p[[i]][3]-1,0))
   }
   ind<-which.min(fx)
@@ -347,9 +295,42 @@ for(k in 1:length(seq(10))){
     vx1[[p]]=vx1[[p]]+c1*runif(3, min=0, max=1)*(x1pg-x1p[[p]])+c2*runif(3, min=0, max=1)*(x1pL[[p]]-x1p[[p]])
   } 
 }
-##continuar con el remplazo de los mejores globales y locales
-
-optime_result<-trading_strategy(x1pg[1],x1pg[2],x1pg[2])
-
+optime_result<-trading_strategy(Historico,x1pg[1],x1pg[2],x1pg[3])
 toc()
 
+
+#mejor resultado
+result<-trading_strategy(Historico,-.035,.1,.2)
+
+#grafica de uno de los activos nada mas
+plots<-list()
+for(k in 1:length(DatosN) ){
+  plots[[k]]<-plot_ly(result[[1]][[k]]) %>%
+    add_trace(x = ~Date, y = ~round(R_Activo,4), type = 'scatter', mode = 'lines', name = 'Activo',
+              line = list(color = 'red')) %>%
+    add_trace(x = ~Date, y = ~round(R_Cuenta,4), type = 'scatter', mode = 'lines', name = 'Cuenta',
+              line = list(color = 'blue')) %>% 
+    layout(title = "Rend del activo VS Rend de la cuenta",
+           xaxis = list(title = "Fechas", showgrid = T),
+           yaxis = list(title = "Rendimiento"), 
+           legend = list(orientation = 'h', y = -0.25, x = 0.5))
+}
+
+
+rends<-c()
+for(k in 1:length(DatosN)){
+  rends<-(cbind(rends,result[[1]][[k]]$R_Cuenta))
+  
+}
+colnames(rends)<-tk_completos
+rownames(rends)<-result[[1]][[1]]$Date
+
+portfolio <- portfolio.spec(assets=tk_completos)
+portfolio <- add.constraint(portfolio = portfolio, type="leverage",
+                            min_sum=0.99, max_sum=1.01)
+portfolio <- add.constraint(portfolio, type="position_limit", max_pos=8)
+portfolio <- add.constraint(portfolio, type="box", min=0, max=0.5) # <-------
+portfolio <- add.objective(portfolio, type="risk", name="SortinoRatio")
+opt <- optimize.portfolio(R=rends, portfolio=portfolio, optimize_method="random")
+
+opt
