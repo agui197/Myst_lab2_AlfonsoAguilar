@@ -242,7 +242,7 @@ results<-trading_strategy(Historico,-.03,.2,.25)
 
 
 
-np<-10; #N?mero de particulas
+np<-20; #N?mero de particulas
 #inicializaci?n
 x1p<-list()
 for(j in 1:length(seq(np))){
@@ -273,7 +273,7 @@ for(j in 1:length(seq(np))){
 c1<-0.3 #Velocidad de convergencia al  mejor global
 c2<-0.3 #velocidad de convergencia al mejor local
 #iteraciones
-for(k in 1:length(seq(10))){
+for(k in 1:length(seq(20))){
   fx<-list()
   a<- -1000
   for(i in 1:length(seq(np))){
@@ -299,8 +299,11 @@ optime_result<-trading_strategy(Historico,x1pg[1],x1pg[2],x1pg[3])
 toc()
 
 
-#mejor resultado
-result<-trading_strategy(Historico,-.035,.1,.2)
+#mejor resultado segun corrida en iteso  #1
+result<-trading_strategy(Historico,-.0455,.4033,.2691)
+
+
+
 
 #grafica de uno de los activos nada mas
 plots<-list()
@@ -322,6 +325,19 @@ for(k in 1:length(DatosN)){
   rends<-(cbind(rends,result[[1]][[k]]$R_Cuenta))
   
 }
+
+#rendimientos finales
+fin_rend<-c()
+for(k in 1:length(DatosN)){
+fin_rend<-cbind(fin_rend,optime_result[[1]][[k]]$R_Cuenta[504])
+}
+ponds<-ETF$X__3[9:length(ETF$X__3)]
+ponds<-as.numeric(ponds[completos])/100
+
+rend_port<-sum(ponds*fin_rend)
+
+
+
 colnames(rends)<-tk_completos
 rownames(rends)<-result[[1]][[1]]$Date
 
